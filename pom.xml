@@ -23,6 +23,9 @@
         <module>data</module>
         <module>api</module>
         <module>application</module>
+        <!-- The coverage module combines the other modules' coverage into one report and runs the
+             gate. It is listed last so Maven builds it after the modules it depends on. -->
+        <module>coverage</module>
     </modules>
 
     <properties>
@@ -67,6 +70,15 @@
         <maven.plugin.resources.version>3.3.1</maven.plugin.resources.version>
         <!-- https://mvnrepository.com/artifact/io.swagger.codegen.v3/swagger-codegen-maven-plugin -->
         <maven.plugin.swagger.codegen.v3.version>3.0.75</maven.plugin.swagger.codegen.v3.version>
+        <!-- https://mvnrepository.com/artifact/org.jacoco/jacoco-maven-plugin -->
+        <jacoco.version>0.8.13</jacoco.version>
+        <!-- https://mvnrepository.com/artifact/org.pitest/pitest-maven -->
+        <pitest.version>1.19.1</pitest.version>
+        <!-- https://mvnrepository.com/artifact/org.pitest/pitest-junit5-plugin -->
+        <pitest.junit5.version>1.2.2</pitest.junit5.version>
+        <!-- PIT mutator group, one of DEFAULTS (stable set), STRONGER (more aggressive mutators),
+             or ALL (every mutator). Override per run, e.g. -Dpitest.mutators=ALL. -->
+        <pitest.mutators>DEFAULTS</pitest.mutators>
 
         <!-- Annotations -->
         <!-- https://mvnrepository.com/artifact/org.mapstruct/mapstruct -->
@@ -198,12 +210,38 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven.plugin.surefire.version}</version>
                 <configuration>
+                    <!-- @{argLine} expands to the JVM args that jacoco:prepare-agent sets; without it the
+                         JaCoCo agent is not added to the JVM that runs the tests, so no coverage is recorded. -->
                     <argLine>
+                        @{argLine}
                         -XX:+EnableDynamicAgentLoading
                         -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
                         -Xshare:off
                     </argLine>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <!-- Sets the argLine property consumed by surefire's @{argLine}. -->
+                        <id>jacoco-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <!-- Writes this module's own coverage report. The combined report over all
+                             modules is built by the coverage module. -->
+                        <id>jacoco-report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -270,5 +308,87 @@
             </plugin>
         </plugins>
     </reporting>
+
+    <profiles>
+        <profile>
+            <!-- Opt-in mutation testing, meant to be run locally with `mvn -P mutation test`. A full run
+                 is slow because PIT re-runs the covering tests for every mutant, and the application's
+                 tests run against a PostgreSQL database in a container managed by Testcontainers. Each class
+                 is mutated in only one module so the
+                 reports do not overlap and the coverage module can combine them correctly:
+                   - domain mutates de.seuhd.campuscoffee.domain.*, run against the domain unit tests;
+                   - application mutates de.seuhd.campuscoffee.api.* and .data.* via crossModule, run
+                     against the system, acceptance, and architecture tests;
+                   - api and data run no mutation of their own (the application run covers their classes).
+                 This profile only configures the plugin; each module turns it on by declaring it. -->
+            <id>mutation</id>
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.pitest</groupId>
+                            <artifactId>pitest-maven</artifactId>
+                            <version>${pitest.version}</version>
+                            <dependencies>
+                                <dependency>
+                                    <groupId>org.pitest</groupId>
+                                    <artifactId>pitest-junit5-plugin</artifactId>
+                                    <version>${pitest.junit5.version}</version>
+                                </dependency>
+                            </dependencies>
+                            <executions>
+                                <execution>
+                                    <id>pitest-mutation-coverage</id>
+                                    <phase>test</phase>
+                                    <goals>
+                                        <goal>mutationCoverage</goal>
+                                    </goals>
+                                </execution>
+                            </executions>
+                            <configuration>
+                                <!-- targetClasses (and crossModule for application) are set in each
+                                     module's own pom, as described above. -->
+                                <targetTests>
+                                    <param>de.seuhd.campuscoffee.*</param>
+                                </targetTests>
+                                <excludedClasses>
+                                    <param>de.seuhd.campuscoffee.domain.tests.*</param>
+                                    <param>de.seuhd.campuscoffee.Application</param>
+                                    <param>de.seuhd.campuscoffee.LoadInitialData</param>
+                                </excludedClasses>
+                                <mutators>
+                                    <mutator>${pitest.mutators}</mutator>
+                                </mutators>
+                                <outputFormats>
+                                    <param>HTML</param>
+                                    <param>XML</param>
+                                </outputFormats>
+                                <!-- The coverage module's report-aggregate goal reads each module's XML
+                                     report and its exported line coverage, so enable both. -->
+                                <exportLineCoverage>true</exportLineCoverage>
+                                <!-- By default PIT writes each run into a new subfolder named with a
+                                     timestamp; false keeps a fixed target/pit-reports path so the coverage
+                                     module can find the reports. -->
+                                <timestampedReports>false</timestampedReports>
+                                <withHistory>true</withHistory>
+                                <failWhenNoMutations>false</failWhenNoMutations>
+                                <!-- Run one test process at a time: the system tests share a single static
+                                     Postgres container (AbstractSysTest), so concurrent runs would collide on it. -->
+                                <threads>1</threads>
+                                <!-- The application's tests are slow to start (Spring context and
+                                     Testcontainers). Without extra time, PIT would treat a still-running
+                                     test as hung and miscount the mutant, so allow a longer per-test timeout. -->
+                                <timeoutConstant>30000</timeoutConstant>
+                                <!-- surefire's argLine starts with @{argLine}, which PIT cannot resolve and
+                                     would pass literally to the JVMs it launches; pass the JVM args here. -->
+                                <parseSurefireArgLine>false</parseSurefireArgLine>
+                                <argLine>-XX:+EnableDynamicAgentLoading -Xshare:off -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

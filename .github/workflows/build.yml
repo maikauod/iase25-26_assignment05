@@ -18,5 +18,17 @@ jobs:
 
       - uses: jdx/mise-action@v3
 
+      # Run through the verify phase so the coverage module's report-aggregate and gate execute.
       - name: Build with Maven
-        run: mvn -B package --file pom.xml
+        run: mvn -B verify --file pom.xml
+
+      # Upload even when the build fails, so a failed coverage gate still leaves the report to inspect.
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-reports
+          path: |
+            coverage/target/site/jacoco-aggregate/
+            */target/site/jacoco/
+          if-no-files-found: warn

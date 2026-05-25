@@ -49,7 +49,7 @@ Domain-specific controllers/services extend these base classes (e.g., `PosContro
 ## Build and Run Commands
 
 ### Prerequisites
-- Docker daemon must be running for using a database in the `dev` profile or for running tests using *Testcontainers*.
+- Docker daemon must be running to use a database in the `dev` profile or to run the tests that use *Testcontainers*.
 - Java 21 and Maven 3.9 (configured via `mise.toml`)
 
 ### Build
@@ -95,6 +95,26 @@ Single test method:
 ```shell
 mvn test -Dtest=PosServiceTest#testMethodName
 ```
+
+### Code Coverage and Mutation Testing
+
+- **Coverage (JaCoCo)**: the `coverage` module aggregates execution data from all modules into one
+  report at `coverage/target/site/jacoco-aggregate/index.html`. Aggregation is required because
+  `domain`/`api`/`data` are largely covered by the `application` system and acceptance tests, not by
+  their own tests (`data` has none). `mvn verify` builds the report and enforces the gate: the
+  `check-aggregate` execution in `coverage/pom.xml` fails the build when aggregated line or branch
+  coverage is below its configured minimums. The minimums track current coverage; raise them
+  when adding tests, never lower them to make a build pass.
+- **Mutation testing (PITest)**: opt-in and local via the `mutation` profile: `mvn -P mutation clean test`
+  (use `clean` so stale per-module reports do not corrupt the aggregate). Each class is mutated in
+  exactly one module so the reports do not overlap: `domain` mutates `domain.*` (its unit tests) and
+  `application` mutates `api.*`/`data.*` via `crossModule` (system/acceptance/architecture tests). The
+  `coverage` module aggregates both into `coverage/target/pit-reports/index.html`. The per-module
+  targets live in `domain/pom.xml` and `application/pom.xml`; shared config is in the root `mutation`
+  profile's `pluginManagement`. Select the mutator group with `-Dpitest.mutators=DEFAULTS|STRONGER|ALL`.
+- When adding a feature, also add tests; use surviving mutants to find missing assertions. The
+  MapStruct mappers `PosEntityMapper` (house-number parsing) and `ReviewDtoMapper` (expression
+  mappings) contain real logic and are kept in scope for both tools.
 
 ### Docker
 

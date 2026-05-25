@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Modify `compose.yaml` to work with Google Cloud Build and Could Run.
 - Extend `mise.toml` to include dependencies for Google Cloud.
 - Update `README.md` to explain deployment to Google Cloud Run.
+- Add JaCoCo code coverage with a new `coverage` module that aggregates execution data across modules, so coverage from the integration and system tests in `application` is attributed to the `domain`, `api`, and `data` classes they test.
+- Enforce a line and branch coverage gate during `mvn verify`, run it in CI, and upload the coverage reports as a build artifact.
+- Add opt-in PITest mutation testing via the `mutation` profile (`mvn -P mutation clean test`): each class is mutated once (`domain.*` by the domain unit tests; `api.*`/`data.*` by the application system tests via `crossModule`) and the `coverage` module aggregates the per-module reports into a combined report. The mutator group is selectable with `-Dpitest.mutators=DEFAULTS|STRONGER|ALL`.
 
 ## [0.0.5] - 2025-12-09
 

@@ -24,6 +24,66 @@ You can use the quiet mode to suppress most log messages:
 mvn clean install -q
 ```
 
+## Code coverage and mutation testing
+
+### Code coverage (JaCoCo)
+
+Coverage is measured with JaCoCo. Most production code in `domain`, `api`, and `data` is tested
+by the system and acceptance tests in the `application` module, so per-module reports alone are
+misleading. The `coverage` module aggregates the execution data from every module into a single
+report that covers all of them together.
+
+Run the full build to produce the reports:
+
+```shell
+mvn clean verify
+```
+
+- Combined report: [`coverage/target/site/jacoco-aggregate/index.html`](coverage/target/site/jacoco-aggregate/index.html)
+- Per-module reports: `domain/target/site/jacoco/index.html`, `api/...`, `data/...`
+
+`mvn verify` also enforces the coverage gate: the build fails when the aggregated line or branch
+coverage is below the minimums configured in [`coverage/pom.xml`](coverage/pom.xml) (`check-aggregate`
+execution). The minimums are set to the current measured coverage; raise them as you add tests so
+the bar follows the suite. The CI workflow runs `mvn verify` and uploads the reports as the
+`jacoco-coverage-reports` artifact, so you can browse the uncovered lines without a local run.
+
+### Mutation testing (PITest)
+
+Mutation testing reports whether the tests actually detect changed behavior. It is opt-in via the
+`mutation` profile and meant to be run locally, since it re-runs the tests for every mutant and the
+system tests run against a PostgreSQL database in a container managed by Testcontainers. Each class is mutated in exactly one module so the per-module
+reports do not overlap: the `domain` module mutates `domain.*` (killed by its unit tests), and the
+`application` module mutates `api.*` and `data.*` via `crossModule` (killed by the system,
+acceptance, and architecture tests). The `coverage` module then aggregates the two into one report.
+
+```shell
+# Full run. Use clean so stale per-module reports do not corrupt the aggregate.
+mvn -P mutation clean test
+
+# Stronger or exhaustive mutator groups produce more, harder-to-kill mutants:
+mvn -P mutation clean test -Dpitest.mutators=STRONGER
+mvn -P mutation clean test -Dpitest.mutators=ALL
+
+# Scope to one class while iterating (skips the slow system-test modules):
+mvn -P mutation test -pl domain -DtargetClasses=de.seuhd.campuscoffee.domain.implementation.ReviewServiceImpl
+```
+
+- Combined report: `coverage/target/pit-reports/index.html`
+- Per-module reports: `domain/target/pit-reports/`, `application/target/pit-reports/`
+
+Surviving mutants point to behavior the tests run but do not assert; add assertions until they are
+killed.
+
+### Growing the test suite
+
+The reports are a worklist for new tests:
+
+1. Open the aggregate coverage report and pick an uncovered package or class.
+2. Add tests for the uncovered lines and branches.
+3. Run PITest on that class and add assertions until the surviving mutants are killed.
+4. Raise the coverage minimums in `coverage/pom.xml` to the new measured level.
+
 ## Start application
 
 First, make sure that the Docker daemon is running.
