@@ -1,3 +1,5 @@
+// dependencyResolutionManagement is @Incubating, so IDEs flag it "unstable"; it is Gradle's
+// recommended way to declare repositories centrally.
 dependencyResolutionManagement {
     repositories {
         gradlePluginPortal()

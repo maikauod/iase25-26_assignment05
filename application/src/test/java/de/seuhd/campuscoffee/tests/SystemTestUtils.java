@@ -3,24 +3,47 @@ package de.seuhd.campuscoffee.tests;
 import de.seuhd.campuscoffee.api.dtos.PosDto;
 import de.seuhd.campuscoffee.api.dtos.ReviewDto;
 import de.seuhd.campuscoffee.api.dtos.UserDto;
-import io.restassured.http.ContentType;
-import io.restassured.specification.RequestSpecification;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.web.servlet.client.EntityExchangeResult;
+import org.springframework.test.web.servlet.client.RestTestClient;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.lang.reflect.Array;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Utility class for system tests.
  */
 public class SystemTestUtils {
+
+    /** Client bound to the running server for the current test; set via {@link #configureClient(int)}. */
+    private static RestTestClient client;
+
+    /**
+     * Binds the shared {@link RestTestClient} to the running server on the given port.
+     *
+     * @param port the random server port for the current test
+     */
+    public static void configureClient(int port) {
+        client = RestTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
+    }
+
+    /**
+     * The client bound to the running server, for tests that call endpoints outside the CRUD helpers.
+     *
+     * @return the configured client
+     */
+    public static RestTestClient client() {
+        return client;
+    }
+
     /**
      * Creates and configures a PostgreSQL testcontainer.
      *
@@ -112,8 +135,8 @@ public class SystemTestUtils {
     }
 
     /**
-     * Generic utility class for REST API testing with RestAssured.
-     * Provides reusable methods for common CRUD operations.
+     * Generic utility for REST API testing over {@link RestTestClient}. Provides reusable methods for
+     * common CRUD operations against the server bound by {@link #configureClient(int)}.
      *
      * @param basePath  The base path of the API endpoint
      * @param dtoClass  The DTO class of the entities being tested
@@ -123,21 +146,36 @@ public class SystemTestUtils {
             String basePath,
             Class<T> dtoClass,
             Function<T, Long> idGetter) {
+
+        /** The DTO body of a response, after asserting the expected status. */
+        private T body(RestTestClient.ResponseSpec response, HttpStatus expected) {
+            EntityExchangeResult<T> result = response.returnResult(dtoClass);
+            assertThat(result.getStatus().value()).isEqualTo(expected.value());
+            return result.getResponseBody();
+        }
+
+        /** The raw status code of a response, without asserting it. */
+        private static int status(RestTestClient.ResponseSpec response) {
+            return response.returnResult(byte[].class).getStatus().value();
+        }
+
+        /** The list body of a response, deserialized via the DTO array type, after asserting 200. */
+        @SuppressWarnings("unchecked")
+        private List<T> list(RestTestClient.ResponseSpec response) {
+            Class<T[]> arrayType = (Class<T[]>) Array.newInstance(dtoClass, 0).getClass();
+            EntityExchangeResult<T[]> result = response.returnResult(arrayType);
+            assertThat(result.getStatus().value()).isEqualTo(HttpStatus.OK.value());
+            T[] elements = result.getResponseBody();
+            return elements == null ? List.of() : List.of(elements);
+        }
+
         /**
          * Retrieves all entities via the API.
          *
          * @return List of DTOs representing all entities
          */
         public List<T> retrieveAll() {
-            return given()
-                    .contentType(ContentType.JSON)
-                    .when()
-                    .get(basePath)
-                    .then()
-                    .statusCode(HttpStatus.OK.value())
-                    .extract().jsonPath().getList("$", dtoClass)
-                    .stream()
-                    .toList();
+            return list(client.get().uri(basePath).accept(MediaType.APPLICATION_JSON).exchange());
         }
 
         /**
@@ -147,13 +185,8 @@ public class SystemTestUtils {
          * @return DTO representing the retrieved entity
          */
         public T retrieveById(Long id) {
-            return given()
-                    .contentType(ContentType.JSON)
-                    .when()
-                    .get(basePath + "/{id}", id)
-                    .then()
-                    .statusCode(HttpStatus.OK.value())
-                    .extract().as(dtoClass);
+            return body(client.get().uri(basePath + "/{id}", id).accept(MediaType.APPLICATION_JSON).exchange(),
+                    HttpStatus.OK);
         }
 
         /**
@@ -163,14 +196,9 @@ public class SystemTestUtils {
          * @return DTO representing the retrieved entity
          */
         public T retrieveByFilter(String filterParameter, String filterValue) {
-            return given()
-                    .contentType(ContentType.JSON)
-                    .queryParam(filterParameter, filterValue)
-                    .when()
-                    .get(basePath + "/filter")
-                    .then()
-                    .statusCode(HttpStatus.OK.value())
-                    .extract().as(dtoClass);
+            return body(client.get()
+                    .uri(basePath + "/filter?" + filterParameter + "={value}", filterValue)
+                    .accept(MediaType.APPLICATION_JSON).exchange(), HttpStatus.OK);
         }
 
         /**
@@ -182,13 +210,9 @@ public class SystemTestUtils {
          * @return the HTTP status code of the response
          */
         public int retrieveByFilterStatusCode(String filterParameter, String filterValue) {
-            return given()
-                    .contentType(ContentType.JSON)
-                    .queryParam(filterParameter, filterValue)
-                    .when()
-                    .get(basePath + "/filter")
-                    .then()
-                    .extract().statusCode();
+            return status(client.get()
+                    .uri(basePath + "/filter?" + filterParameter + "={value}", filterValue)
+                    .accept(MediaType.APPLICATION_JSON).exchange());
         }
 
         /**
@@ -199,15 +223,8 @@ public class SystemTestUtils {
          */
         public List<T> create(List<T> entityList) {
             return entityList.stream()
-                    .map(dto -> given()
-                            .contentType(ContentType.JSON)
-                            .body(dto)
-                            .when()
-                            .post(basePath)
-                            .then()
-                            .statusCode(HttpStatus.CREATED.value())
-                            .extract().as(dtoClass)
-                    )
+                    .map(dto -> body(client.post().uri(basePath)
+                            .contentType(MediaType.APPLICATION_JSON).body(dto).exchange(), HttpStatus.CREATED))
                     .toList();
         }
 
@@ -219,16 +236,8 @@ public class SystemTestUtils {
          */
         public List<Integer> createAndReturnStatusCodes(List<T> entityList) {
             return entityList.stream()
-                    .map(dto -> given()
-                            .contentType(ContentType.JSON)
-                            .body(dto)
-                            .when()
-                            .post(basePath)
-                            .then()
-                            .extract()
-                            .response()
-                            .statusCode()
-                    )
+                    .map(dto -> status(client.post().uri(basePath)
+                            .contentType(MediaType.APPLICATION_JSON).body(dto).exchange()))
                     .toList();
         }
 
@@ -240,15 +249,8 @@ public class SystemTestUtils {
          */
         public List<T> update(List<T> entityList) {
             return entityList.stream()
-                    .map(dto -> given()
-                            .contentType(ContentType.JSON)
-                            .body(dto)
-                            .when()
-                            .put(basePath + "/{id}", idGetter.apply(dto))
-                            .then()
-                            .statusCode(HttpStatus.OK.value())
-                            .extract().as(dtoClass)
-                    )
+                    .map(dto -> body(client.put().uri(basePath + "/{id}", idGetter.apply(dto))
+                            .contentType(MediaType.APPLICATION_JSON).body(dto).exchange(), HttpStatus.OK))
                     .toList();
         }
 
@@ -260,14 +262,7 @@ public class SystemTestUtils {
          */
         public List<Integer> deleteAndReturnStatusCodes(List<Long> idList) {
             return idList.stream()
-                    .map(id -> given()
-                            .when()
-                            .delete(basePath + "/{id}", id)
-                            .then()
-                            .extract()
-                            .response()
-                            .statusCode()
-                    )
+                    .map(id -> status(client.delete().uri(basePath + "/{id}", id).exchange()))
                     .toList();
         }
 
@@ -280,18 +275,11 @@ public class SystemTestUtils {
          * @return list of DTOs matching the filter criteria
          */
         public List<T> retrieveByFilter(Map<String, Object> params) {
-            RequestSpecification request = given().contentType(ContentType.JSON);
-            for (Map.Entry<String, Object> param : params.entrySet()) {
-                request = request.queryParam(param.getKey(), param.getValue());
-            }
-            return request
-                    .when()
-                    .get(basePath + "/filter")
-                    .then()
-                    .statusCode(HttpStatus.OK.value())
-                    .extract().jsonPath().getList("$", dtoClass)
-                    .stream()
-                    .toList();
+            return list(client.get().uri(uriBuilder -> {
+                uriBuilder.path(basePath + "/filter");
+                params.forEach(uriBuilder::queryParam);
+                return uriBuilder.build();
+            }).accept(MediaType.APPLICATION_JSON).exchange());
         }
 
         /**
@@ -301,12 +289,7 @@ public class SystemTestUtils {
          * @return the HTTP status code of the response
          */
         public int retrieveByIdStatusCode(Long id) {
-            return given()
-                    .contentType(ContentType.JSON)
-                    .when()
-                    .get(basePath + "/{id}", id)
-                    .then()
-                    .extract().statusCode();
+            return status(client.get().uri(basePath + "/{id}", id).accept(MediaType.APPLICATION_JSON).exchange());
         }
 
         /**
@@ -318,13 +301,8 @@ public class SystemTestUtils {
          * @return the HTTP status code of the response
          */
         public int updateWithPathIdAndReturnStatusCode(Long pathId, T dto) {
-            return given()
-                    .contentType(ContentType.JSON)
-                    .body(dto)
-                    .when()
-                    .put(basePath + "/{id}", pathId)
-                    .then()
-                    .extract().statusCode();
+            return status(client.put().uri(basePath + "/{id}", pathId)
+                    .contentType(MediaType.APPLICATION_JSON).body(dto).exchange());
         }
 
         /**
@@ -336,14 +314,8 @@ public class SystemTestUtils {
          */
         public List<Integer> updateAndReturnStatusCodes(List<T> entityList) {
             return entityList.stream()
-                    .map(dto -> given()
-                            .contentType(ContentType.JSON)
-                            .body(dto)
-                            .when()
-                            .put(basePath + "/{id}", idGetter.apply(dto))
-                            .then()
-                            .extract().statusCode()
-                    )
+                    .map(dto -> status(client.put().uri(basePath + "/{id}", idGetter.apply(dto))
+                            .contentType(MediaType.APPLICATION_JSON).body(dto).exchange()))
                     .toList();
         }
 
@@ -355,14 +327,8 @@ public class SystemTestUtils {
          * @return the updated DTO
          */
         public T approve(Long id, Long userId) {
-            return given()
-                    .contentType(ContentType.JSON)
-                    .queryParam("user_id", userId)
-                    .when()
-                    .put(basePath + "/{id}/approve", id)
-                    .then()
-                    .statusCode(HttpStatus.OK.value())
-                    .extract().as(dtoClass);
+            return body(client.put().uri(basePath + "/{id}/approve?user_id={userId}", id, userId).exchange(),
+                    HttpStatus.OK);
         }
 
         /**
@@ -374,13 +340,7 @@ public class SystemTestUtils {
          * @return the HTTP status code of the response
          */
         public int approveAndReturnStatusCode(Long id, Long userId) {
-            return given()
-                    .contentType(ContentType.JSON)
-                    .queryParam("user_id", userId)
-                    .when()
-                    .put(basePath + "/{id}/approve", id)
-                    .then()
-                    .extract().statusCode();
+            return status(client.put().uri(basePath + "/{id}/approve?user_id={userId}", id, userId).exchange());
         }
 
         public static SystemTestUtils.Requests<PosDto> posRequests = new SystemTestUtils.Requests<>(

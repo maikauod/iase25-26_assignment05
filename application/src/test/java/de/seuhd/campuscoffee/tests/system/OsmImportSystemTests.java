@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.client.EntityExchangeResult;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -17,13 +18,13 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
-import static io.restassured.RestAssured.given;
+import static de.seuhd.campuscoffee.tests.SystemTestUtils.client;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * System tests for importing a POS from an OpenStreetMap node. The external OSM HTTP API is stubbed
- * with WireMock, and the Feign client is pointed at the stub through the {@code osm.api.base-url}
- * property. The server starts before the Spring context so the Feign client resolves the stub URL.
+ * with WireMock, and the OSM client is pointed at the stub through the {@code osm.api.base-url}
+ * property. The server starts before the Spring context so the client resolves the stub URL.
  */
 public class OsmImportSystemTests extends AbstractSysTest {
 
@@ -58,13 +59,12 @@ public class OsmImportSystemTests extends AbstractSysTest {
                         .withHeader("Content-Type", "application/xml")
                         .withBody(osmXml(NODE_ID, validTags()))));
 
-        PosDto imported = given()
-                .queryParam("campus_type", "INF")
-                .when()
-                .post("/api/pos/import/osm/{nodeId}", NODE_ID)
-                .then()
-                .statusCode(HttpStatus.CREATED.value())
-                .extract().as(PosDto.class);
+        EntityExchangeResult<PosDto> result = client()
+                .post().uri("/api/pos/import/osm/{nodeId}?campus_type={campus}", NODE_ID, "INF")
+                .exchange().returnResult(PosDto.class);
+
+        assertThat(result.getStatus().value()).isEqualTo(HttpStatus.CREATED.value());
+        PosDto imported = result.getResponseBody();
 
         assertThat(imported.name()).isEqualTo("Campus Cafe");
         assertThat(imported.type()).isEqualTo(PosType.CAFE);
@@ -77,12 +77,11 @@ public class OsmImportSystemTests extends AbstractSysTest {
         wireMock.stubFor(get(urlEqualTo("/node/" + NODE_ID))
                 .willReturn(aResponse().withStatus(HttpStatus.NOT_FOUND.value())));
 
-        given()
-                .queryParam("campus_type", "INF")
-                .when()
-                .post("/api/pos/import/osm/{nodeId}", NODE_ID)
-                .then()
-                .statusCode(HttpStatus.NOT_FOUND.value());
+        int status = client()
+                .post().uri("/api/pos/import/osm/{nodeId}?campus_type={campus}", NODE_ID, "INF")
+                .exchange().returnResult(byte[].class).getStatus().value();
+
+        assertThat(status).isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
     @Test
@@ -95,12 +94,11 @@ public class OsmImportSystemTests extends AbstractSysTest {
                         .withHeader("Content-Type", "application/xml")
                         .withBody(osmXml(NODE_ID, withoutAmenity))));
 
-        given()
-                .queryParam("campus_type", "INF")
-                .when()
-                .post("/api/pos/import/osm/{nodeId}", NODE_ID)
-                .then()
-                .statusCode(HttpStatus.BAD_REQUEST.value());
+        int status = client()
+                .post().uri("/api/pos/import/osm/{nodeId}?campus_type={campus}", NODE_ID, "INF")
+                .exchange().returnResult(byte[].class).getStatus().value();
+
+        assertThat(status).isEqualTo(HttpStatus.BAD_REQUEST.value());
     }
 
     // helpers ---------------------------------------------------------------------

@@ -1,18 +1,17 @@
-# Version catalog for the CampusCoffee Gradle build.
-# Versions not listed here are managed by the imported Spring Boot / Spring Cloud BOMs
-# (see the campuscoffee.java-conventions convention plugin).
+# Version catalog for the CampusCoffee Gradle build. Entries without a version are managed by the
+# Spring Boot BOM (imported in campuscoffee.java-conventions).
 [versions]
-spring-boot = "3.5.8"
-spring-cloud = "2025.0.0"
-junit-jupiter = "5.14.0"
-springdoc = "2.8.14"
+spring-boot = "4.0.6"
+junit = "6.0.3"
+springdoc = "3.0.1"
 mapstruct = "1.6.3"
 lombok-mapstruct-binding = "0.2.0"
-cucumber = "7.31.0"
+cucumber = "7.34.3"
 archunit = "1.4.1"
 wiremock = "3.13.1"
+# Testcontainers is no longer managed by the Boot 4 BOM at the coordinates used here.
+testcontainers = "1.21.4"
 jacoco = "0.8.13"
-# PIT 1.20+ bundles ASM 9.8, required to read Java 25 (class-file major 69) bytecode.
 pitest-tool = "1.25.1"
 pitest-junit5 = "1.2.3"
 # Gradle plugins
@@ -20,20 +19,21 @@ dependency-management = "1.1.7"
 pitest-plugin = "1.19.0"
 
 [libraries]
-# BOMs (imported by the dependency-management plugin)
+# BOM (imported by the dependency-management plugin)
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
-spring-cloud-dependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "spring-cloud" }
 
 # BOM-managed (version omitted on purpose)
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
 spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+# Boot 4 split autoconfiguration into per-technology modules; Flyway's is not pulled by data-jpa.
+spring-boot-flyway = { module = "org.springframework.boot:spring-boot-flyway" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
-spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
 spring-boot-configuration-processor = { module = "org.springframework.boot:spring-boot-configuration-processor" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 spring-tx = { module = "org.springframework:spring-tx" }
-spring-cloud-starter-openfeign = { module = "org.springframework.cloud:spring-cloud-starter-openfeign" }
+spring-web = { module = "org.springframework:spring-web" }
 lombok = { module = "org.projectlombok:lombok" }
 jspecify = { module = "org.jspecify:jspecify" }
 commons-lang3 = { module = "org.apache.commons:commons-lang3" }
@@ -41,9 +41,6 @@ postgresql = { module = "org.postgresql:postgresql" }
 flyway-core = { module = "org.flywaydb:flyway-core" }
 flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql" }
 jackson-dataformat-xml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml" }
-testcontainers-postgresql = { module = "org.testcontainers:postgresql" }
-testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter" }
-rest-assured = { module = "io.rest-assured:rest-assured" }
 assertj-core = { module = "org.assertj:assertj-core" }
 junit-platform-suite = { module = "org.junit.platform:junit-platform-suite" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
@@ -60,8 +57,9 @@ cucumber-junit-platform-engine = { module = "io.cucumber:cucumber-junit-platform
 cucumber-spring = { module = "io.cucumber:cucumber-spring", version.ref = "cucumber" }
 archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" }
 wiremock-standalone = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
 
-# Gradle plugin artifacts, depended on by build-logic so convention plugins can apply them by id
+# Plugin artifacts build-logic depends on so the convention plugins can apply them by id
 spring-boot-gradle-plugin = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "spring-boot" }
 dependency-management-plugin = { module = "io.spring.gradle:dependency-management-plugin", version.ref = "dependency-management" }
 pitest-gradle-plugin = { module = "info.solidsoft.gradle.pitest:gradle-pitest-plugin", version.ref = "pitest-plugin" }

@@ -6,7 +6,6 @@ import de.seuhd.campuscoffee.api.mapper.UserDtoMapper;
 import de.seuhd.campuscoffee.domain.ports.api.PosService;
 import de.seuhd.campuscoffee.domain.ports.api.ReviewService;
 import de.seuhd.campuscoffee.domain.ports.api.UserService;
-import io.restassured.RestAssured;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +15,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
+import static de.seuhd.campuscoffee.tests.SystemTestUtils.configureClient;
 import static de.seuhd.campuscoffee.tests.SystemTestUtils.configurePostgresContainers;
 import static de.seuhd.campuscoffee.tests.SystemTestUtils.getPostgresContainer;
 
@@ -68,7 +68,7 @@ public abstract class AbstractSysTest {
         reviewService.clear();
         posService.clear();
         userService.clear();
-        RestAssured.baseURI = "http://localhost:" + port;
+        configureClient(port);
     }
 
     @AfterEach

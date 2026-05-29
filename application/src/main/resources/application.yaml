@@ -17,7 +17,6 @@ logging:
     name: campus-coffee.log
   level:
     de.seuhd.campuscoffee.data.client: DEBUG
-    feign: DEBUG
 server:
   error:
     whitelabel:

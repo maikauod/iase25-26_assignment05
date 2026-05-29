@@ -2,9 +2,7 @@ import info.solidsoft.gradle.pitest.PitestPluginExtension
 import org.gradle.api.artifacts.VersionCatalogsExtension
 
 // Opt-in, local mutation testing (run with `-Pmutation`, e.g. `gradle :domain:pitest -Pmutation`).
-// Mirrors the Maven `mutation` profile's shared config; each module sets its own targetClasses.
-// Not part of `build`/CI. The application module's cross-module run (mutating api.*/data.* against
-// the system tests) is a follow-up; this covers the per-module runs.
+// Not run by `build` or CI. Shared config lives here; each module sets its own targetClasses.
 plugins {
     id("info.solidsoft.pitest")
 }

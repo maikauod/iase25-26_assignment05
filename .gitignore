@@ -48,6 +48,10 @@ target/
 ##########
 .gradle/
 build/
+# Gradle is provisioned via mise, not a wrapper; ignore IDE-generated wrapper files.
+gradlew
+gradlew.bat
+gradle/wrapper/
 
 ####################
 # Node.js, Angular #

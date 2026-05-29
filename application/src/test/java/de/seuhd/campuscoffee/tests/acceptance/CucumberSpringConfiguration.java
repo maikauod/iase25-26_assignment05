@@ -6,7 +6,6 @@ import de.seuhd.campuscoffee.domain.ports.api.UserService;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.spring.CucumberContextConfiguration;
-import io.restassured.RestAssured;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -14,6 +13,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
+import static de.seuhd.campuscoffee.tests.SystemTestUtils.configureClient;
 import static de.seuhd.campuscoffee.tests.SystemTestUtils.configurePostgresContainers;
 import static de.seuhd.campuscoffee.tests.SystemTestUtils.getPostgresContainer;
 
@@ -57,7 +57,7 @@ public class CucumberSpringConfiguration {
         reviewService.clear();
         posService.clear();
         userService.clear();
-        RestAssured.baseURI = "http://localhost:" + port;
+        configureClient(port);
     }
 
     @After

@@ -14,15 +14,9 @@ dependencies {
     runtimeOnly(project(":data"))
 
     implementation(libs.spring.boot.starter.web)
-    implementation(libs.spring.cloud.starter.openfeign)
     implementation(libs.spring.boot.starter.actuator)
 
-    testImplementation(libs.spring.boot.testcontainers)
     testImplementation(libs.testcontainers.postgresql)
-    testImplementation(libs.testcontainers.junit.jupiter)
-    testImplementation(libs.rest.assured) {
-        exclude(group = "commons-logging", module = "commons-logging")
-    }
     testImplementation(libs.assertj.core)
     testImplementation(libs.junit.platform.suite)
     testImplementation(libs.cucumber.java)
@@ -33,7 +27,7 @@ dependencies {
     testImplementation(libs.wiremock.standalone)
 }
 
-// Match the Maven artifact name the Dockerfile/compose expect (application-0.0.5.jar).
+// Name the boot jar application-<version>.jar; the Dockerfile copies that exact name.
 tasks.named<BootJar>("bootJar") {
     archiveFileName.set("application-${project.version}.jar")
 }
@@ -44,8 +38,8 @@ tasks.named("jar") {
 }
 
 // Cross-module mutation: mutate the api and data classes against this module's system and
-// acceptance tests (the only tests that exercise the controllers), mirroring the Maven build's
-// crossModule run. Opt-in and local: `gradle :application:pitest -Pmutation`.
+// acceptance tests, the only tests that exercise the controllers. Opt-in and local:
+// `gradle :application:pitest -Pmutation`.
 configure<PitestPluginExtension> {
     targetClasses.set(listOf("de.seuhd.campuscoffee.api.*", "de.seuhd.campuscoffee.data.*"))
     additionalMutableCodePaths.set(

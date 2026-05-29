@@ -13,7 +13,7 @@ The project uses a **multi-module Gradle structure** (Kotlin DSL) with four modu
 ### Module Dependencies
 - **domain**: Core business logic, domain models, and port interfaces (no external dependencies except validation).
 - **api**: REST API layer with controllers, DTOs, and DTO mappers (depends on: domain).
-- **data**: Data layer with JPA entities, repositories, and Feign clients (depends on: domain).
+- **data**: Data layer with JPA entities, repositories, and the OpenStreetMap HTTP client (depends on: domain).
 - **application**: Main Spring Boot application that wires everything together (depends on: domain, api, data at runtime).
 
 ### Layer Rules (Enforced by ArchUnit)
@@ -159,13 +159,13 @@ Migration files follow Flyway naming convention (e.g., `V1__create_pos_table.sql
 
 ## Key Technologies
 
-- **Spring Boot 3.5.8** with Spring Cloud 2025.0.0.
+- **Spring Boot 4.0.6** (Spring Framework 7).
 - **Java 25** with JSpecify annotations for nullability.
 - **Lombok** for boilerplate reduction.
 - **MapStruct** for object mapping (DTOs <-> domain models <-> entities).
 - **Bean Validation** (Jakarta Validation) for input validation (validation happens in the controllers based on the DTOs, before mapping them to domain models).
 - **OpenAPI/Swagger** (SpringDoc) for API documentation.
-- **Feign** for REST client (OpenStreetMap API integration).
+- **Spring `@HttpExchange`** declarative HTTP client over `RestClient` (OpenStreetMap API integration).
 - **Testcontainers** for system tests.
 - **Cucumber** for BDD acceptance tests.
 - **ArchUnit** for architecture testing.

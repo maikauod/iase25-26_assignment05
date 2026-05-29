@@ -7,8 +7,8 @@ repositories {
     mavenCentral()
 }
 
-// The convention plugins under src/main/kotlin apply these third-party plugins by id, so their
-// implementation artifacts must be on build-logic's classpath. Versions come from the catalog.
+// The convention plugins apply these Gradle plugins by id, so their jars must be on build-logic's
+// classpath here.
 dependencies {
     implementation(libs.spring.boot.gradle.plugin)
     implementation(libs.dependency.management.plugin)

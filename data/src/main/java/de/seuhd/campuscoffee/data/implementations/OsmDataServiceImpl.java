@@ -1,18 +1,18 @@
 package de.seuhd.campuscoffee.data.implementations;
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import de.seuhd.campuscoffee.data.client.OsmFeignClient;
+import de.seuhd.campuscoffee.data.client.OsmClient;
 import de.seuhd.campuscoffee.data.client.OsmResponse;
 import de.seuhd.campuscoffee.domain.exceptions.MissingFieldException;
 import de.seuhd.campuscoffee.domain.exceptions.NotFoundException;
 import de.seuhd.campuscoffee.domain.model.enums.OsmAmenity;
 import de.seuhd.campuscoffee.domain.model.objects.OsmNode;
 import de.seuhd.campuscoffee.domain.ports.data.OsmDataService;
-import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 
 import java.io.IOException;
 import java.util.Map;
@@ -28,13 +28,13 @@ class OsmDataServiceImpl implements OsmDataService {
     /** Description applied when an OSM node carries no {@code description} tag. */
     static final String DEFAULT_DESCRIPTION = "n/a";
 
-    private final OsmFeignClient osmFeignClient;
+    private final OsmClient osmClient;
 
     @Override
     public @NonNull OsmNode fetchNode(@NonNull Long nodeId) {
         try {
             log.debug("Fetching OSM node with ID '{}'...", nodeId);
-            String xmlResponse = osmFeignClient.fetchNode(nodeId);
+            String xmlResponse = osmClient.fetchNode(nodeId);
 
             if (xmlResponse == null || xmlResponse.isEmpty()) {
                 log.error("Empty response from OSM API for node with ID '{}'.", nodeId);
@@ -46,12 +46,8 @@ class OsmDataServiceImpl implements OsmDataService {
             log.debug("Successfully fetched and parsed OSM node with ID '{}'.", nodeId);
             return node;
 
-        } catch (FeignException.NotFound e) {
-            log.warn("OSM node with ID '{}' not found.", nodeId);
-            throw new NotFoundException(OsmNode.class, nodeId);
-        } catch (FeignException e) {
-            log.error("HTTP error fetching OSM node with ID '{}': {} - {}",
-                    nodeId, e.status(), e.getMessage());
+        } catch (RestClientException e) {
+            log.warn("HTTP error fetching OSM node with ID '{}': {}", nodeId, e.getMessage());
             throw new NotFoundException(OsmNode.class, nodeId);
         } catch (MissingFieldException e) {
             // re-throw missing fields exception as-is

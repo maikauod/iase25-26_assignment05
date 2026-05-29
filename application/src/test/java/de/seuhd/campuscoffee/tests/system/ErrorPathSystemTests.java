@@ -4,16 +4,17 @@ import de.seuhd.campuscoffee.api.dtos.PosDto;
 import de.seuhd.campuscoffee.api.dtos.ReviewDto;
 import de.seuhd.campuscoffee.api.dtos.UserDto;
 import de.seuhd.campuscoffee.domain.tests.TestFixtures;
-import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.client.EntityExchangeResult;
 
 import java.util.List;
 
 import static de.seuhd.campuscoffee.tests.SystemTestUtils.Requests.posRequests;
 import static de.seuhd.campuscoffee.tests.SystemTestUtils.Requests.reviewRequests;
 import static de.seuhd.campuscoffee.tests.SystemTestUtils.Requests.userRequests;
-import static io.restassured.RestAssured.given;
+import static de.seuhd.campuscoffee.tests.SystemTestUtils.client;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -86,16 +87,13 @@ public class ErrorPathSystemTests extends AbstractSysTest {
                 .toBuilder().city("").build();
 
         // the validation handler names the rejected field in the message; assert the name, not the exact text
-        String message = given()
-                .contentType(ContentType.JSON)
-                .body(invalid)
-                .when()
-                .post("/api/pos")
-                .then()
-                .statusCode(HttpStatus.BAD_REQUEST.value())
-                .extract().jsonPath().getString("message");
+        EntityExchangeResult<String> result = client()
+                .post().uri("/api/pos")
+                .contentType(MediaType.APPLICATION_JSON).body(invalid)
+                .exchange().returnResult(String.class);
 
-        assertThat(message).contains("city");
+        assertThat(result.getStatus().value()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(result.getResponseBody()).contains("city");
     }
 
     @Test

@@ -1,6 +1,6 @@
 package de.seuhd.campuscoffee.data.implementations;
 
-import de.seuhd.campuscoffee.data.client.OsmFeignClient;
+import de.seuhd.campuscoffee.data.client.OsmClient;
 import de.seuhd.campuscoffee.domain.exceptions.MissingFieldException;
 import de.seuhd.campuscoffee.domain.exceptions.NotFoundException;
 import de.seuhd.campuscoffee.domain.model.enums.OsmAmenity;
@@ -35,18 +35,18 @@ class OsmDataServiceTest {
     private static final long NODE_ID = 123L;
 
     @Mock
-    private OsmFeignClient osmFeignClient;
+    private OsmClient osmClient;
 
     private OsmDataServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new OsmDataServiceImpl(osmFeignClient);
+        service = new OsmDataServiceImpl(osmClient);
     }
 
     @Test
     void validResponseIsParsed() {
-        when(osmFeignClient.fetchNode(NODE_ID)).thenReturn(xml(NODE_ID, validTags()));
+        when(osmClient.fetchNode(NODE_ID)).thenReturn(xml(NODE_ID, validTags()));
 
         OsmNode node = service.fetchNode(NODE_ID);
 
@@ -64,7 +64,7 @@ class OsmDataServiceTest {
     @ParameterizedTest
     @NullAndEmptySource
     void emptyOrNullResponseThrowsNotFound(String response) {
-        when(osmFeignClient.fetchNode(NODE_ID)).thenReturn(response);
+        when(osmClient.fetchNode(NODE_ID)).thenReturn(response);
 
         assertThatThrownBy(() -> service.fetchNode(NODE_ID)).isInstanceOf(NotFoundException.class);
     }
@@ -74,7 +74,7 @@ class OsmDataServiceTest {
     void missingRequiredTagThrowsMissingField(String missingKey) {
         Map<String, String> tags = validTags();
         tags.remove(missingKey);
-        when(osmFeignClient.fetchNode(NODE_ID)).thenReturn(xml(NODE_ID, tags));
+        when(osmClient.fetchNode(NODE_ID)).thenReturn(xml(NODE_ID, tags));
 
         assertThatThrownBy(() -> service.fetchNode(NODE_ID)).isInstanceOf(MissingFieldException.class);
     }
@@ -83,21 +83,21 @@ class OsmDataServiceTest {
     void unsupportedAmenityThrowsMissingField() {
         Map<String, String> tags = validTags();
         tags.put("amenity", "library");
-        when(osmFeignClient.fetchNode(NODE_ID)).thenReturn(xml(NODE_ID, tags));
+        when(osmClient.fetchNode(NODE_ID)).thenReturn(xml(NODE_ID, tags));
 
         assertThatThrownBy(() -> service.fetchNode(NODE_ID)).isInstanceOf(MissingFieldException.class);
     }
 
     @Test
     void responseWithoutNodeElementThrowsNotFound() {
-        when(osmFeignClient.fetchNode(NODE_ID)).thenReturn("<osm></osm>");
+        when(osmClient.fetchNode(NODE_ID)).thenReturn("<osm></osm>");
 
         assertThatThrownBy(() -> service.fetchNode(NODE_ID)).isInstanceOf(NotFoundException.class);
     }
 
     @Test
     void nodeWithoutIdThrowsNotFound() {
-        when(osmFeignClient.fetchNode(NODE_ID)).thenReturn(
+        when(osmClient.fetchNode(NODE_ID)).thenReturn(
                 "<osm>\n  <node>\n    <tag k=\"amenity\" v=\"cafe\"/>\n    <tag k=\"name\" v=\"X\"/>\n  </node>\n</osm>\n");
 
         assertThatThrownBy(() -> service.fetchNode(NODE_ID)).isInstanceOf(NotFoundException.class);
@@ -106,7 +106,7 @@ class OsmDataServiceTest {
     @Test
     void singleTagIsTreatedAsNoTagsAndReportsMissingField() {
         // the deserializer only collects tags when they form an array, so a lone tag yields no tags
-        when(osmFeignClient.fetchNode(NODE_ID)).thenReturn(
+        when(osmClient.fetchNode(NODE_ID)).thenReturn(
                 "<osm>\n  <node id=\"" + NODE_ID + "\">\n    <tag k=\"amenity\" v=\"cafe\"/>\n  </node>\n</osm>\n");
 
         assertThatThrownBy(() -> service.fetchNode(NODE_ID)).isInstanceOf(MissingFieldException.class);
@@ -131,7 +131,7 @@ class OsmDataServiceTest {
         if (nameEn != null) {
             tags.put("name:en", nameEn);
         }
-        when(osmFeignClient.fetchNode(NODE_ID)).thenReturn(xml(NODE_ID, tags));
+        when(osmClient.fetchNode(NODE_ID)).thenReturn(xml(NODE_ID, tags));
 
         assertThat(service.fetchNode(NODE_ID).name()).isEqualTo(expected);
     }

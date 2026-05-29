@@ -1,12 +1,11 @@
-// Replaces the Maven `coverage` module: aggregates every module's JaCoCo execution data into one
-// report and enforces the coverage gate (90% line, 80% branch) with the same exclusions.
+// Aggregates every module's JaCoCo execution data into one report and enforces the coverage gate
+// (90% line, 80% branch).
 plugins {
     base
     jacoco
     id("jacoco-report-aggregation")
     // The aggregation configuration resolves the modules' transitive runtime dependencies, whose
-    // versions are supplied by the Spring Boot BOM (io.spring.dependency-management does not export
-    // its managed versions to consumers, so the BOM must be imported here too).
+    // versions come from the Spring Boot BOM, so it is imported here as well.
     alias(libs.plugins.dependency.management)
 }
 
@@ -17,7 +16,6 @@ repositories {
 dependencyManagement {
     imports {
         mavenBom("org.springframework.boot:spring-boot-dependencies:${libs.versions.spring.boot.get()}")
-        mavenBom("org.springframework.cloud:spring-cloud-dependencies:${libs.versions.spring.cloud.get()}")
     }
 }
 
