@@ -39,6 +39,8 @@ data class UserDto(
     // TODO (Exercise 1): make the password required and at least 8 characters (firstName and lastName
     //  above show the bean-validation pattern to follow).
     @field:JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    val password: String? = null,
+    @field:NotNull
+    @field:Size(min = 8, max = 255, message = "password must be at least 8 characters long")
+    val password: String,
     val roles: Set<Role>? = null
 ) : Dto<Long>
