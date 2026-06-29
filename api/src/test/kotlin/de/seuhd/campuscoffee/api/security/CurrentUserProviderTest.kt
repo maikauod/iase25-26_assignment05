@@ -9,7 +9,6 @@ import org.mockito.kotlin.mock
  * Tests [CurrentUserProvider], the bridge from the Spring Security principal to the domain [User].
  */
 class CurrentUserProviderTest {
-
     private val userService: UserService = mock()
     private val currentUserProvider = CurrentUserProvider(userService)
 

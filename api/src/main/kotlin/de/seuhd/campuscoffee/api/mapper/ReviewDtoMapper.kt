@@ -26,7 +26,6 @@ abstract class ReviewDtoMapper : DtoMapper<Review, ReviewDto> {
     internal lateinit var userService: UserService
 
     @Mapping(target = "posId", source = "pos.id")
-    @Mapping(target = "authorId", source = "author.id")
     abstract override fun fromDomain(source: Review): ReviewDto
 
     /**

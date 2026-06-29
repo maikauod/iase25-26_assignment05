@@ -2,8 +2,8 @@ package de.seuhd.campuscoffee.api.security
 
 import de.seuhd.campuscoffee.domain.model.objects.User
 import de.seuhd.campuscoffee.domain.ports.api.UserService
-import org.springframework.stereotype.Component
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.stereotype.Component
 
 /**
  * Resolves the authenticated principal to the domain [User] acting on the current request.
