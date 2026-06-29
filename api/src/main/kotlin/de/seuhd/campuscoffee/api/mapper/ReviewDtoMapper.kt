@@ -35,7 +35,7 @@ abstract class ReviewDtoMapper : DtoMapper<Review, ReviewDto> {
      * update the service restores the persisted approval state (approvals are owned by the approval
      * workflow, never by the client).
      *
-     * TODO (Exercise 2): the author is the authenticated user, not the DTO's authorId; the controller must
+     *  (Exercise 2): the author is the authenticated user, not the DTO's authorId; the controller must
      *  supply it (and a body carrying an authorId is rejected). Adjust how the author is resolved here.
      */
     override fun toDomain(source: ReviewDto): Review =
