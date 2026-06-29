@@ -2,6 +2,10 @@ package de.seuhd.campuscoffee.security
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpMethod.DELETE
+import org.springframework.http.HttpMethod.GET
+import org.springframework.http.HttpMethod.POST
+import org.springframework.http.HttpMethod.PUT
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -31,12 +35,17 @@ class SecurityConfig {
     ): SecurityFilterChain {
         http {
             authorizeHttpRequests {
-                // TODO (Exercise 1): require authentication on write operations (POST/PUT/DELETE), keeping
+                //   (Exercise 1): require authentication on write operations (POST/PUT/DELETE), keeping
                 //  POS/review reads, registration (POST /users), and the Swagger / dev endpoints open. User
                 //  data is not public: listing users (GET /users) is admin-only and a single user (GET
                 //  /users/{id}, login-name filter) requires authentication; the finer self-or-admin rule for
                 //  one user depends on the target, so it is enforced in the domain in Exercise 2. The starter
                 //  leaves everything open so the app builds green with no auth enforced yet.
+
+                // dev profile
+                authorize("/swagger-ui/**", permitAll)
+                authorize("/api/api-docs/**", permitAll)
+                authorize("/api/dev/**", permitAll)
                 authorize(GET, "/api/pos/**", permitAll)
                 authorize(GET, "/api/reviews/**", permitAll)
                 authorize(GET, "/api/users", hasRole("ADMIN"))
@@ -48,20 +57,9 @@ class SecurityConfig {
                 authorize(PUT, "/api/reviews/**", hasRole("MODERATOR"))
                 authorize(DELETE, "/api/reviews/**", hasRole("MODERATOR"))
                 authorize(anyRequest, authenticated)
-
-                //dev profile
-                authorize("/swagger-ui/**", permitAll)
-                authorize("/api/api-docs/**", permitAll)
-                authorize("/api/dev/**", permitAll)
-
-
-
-
-
                 // TODO (Exercise 3): curating a POS (POST/PUT/DELETE `/pos`) requires the `MODERATOR` role,
                 //  and deleting a user (DELETE `/users/{id}`) requires `ADMIN`; add these rules before the
                 //  catch-all so they take precedence.
-               // authorize(anyRequest, permitAll)
             }
             // Stateless API: no server-side session; the principal comes from the credentials on each request.
             csrf { disable() }

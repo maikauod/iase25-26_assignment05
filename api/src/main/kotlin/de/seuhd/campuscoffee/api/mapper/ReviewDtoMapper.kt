@@ -44,7 +44,7 @@ abstract class ReviewDtoMapper : DtoMapper<Review, ReviewDto> {
             createdAt = source.createdAt,
             updatedAt = source.updatedAt,
             pos = posService.getById(source.posId!!),
-            author = userService.getById(source.authorId!!),
+            author = throw IllegalStateException("Author must be set by service layer"),
             review = source.review!!,
             approved = false,
             approvalCount = 0

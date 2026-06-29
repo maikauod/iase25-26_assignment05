@@ -3,6 +3,7 @@ package de.seuhd.campuscoffee.api.security
 import de.seuhd.campuscoffee.domain.model.objects.User
 import de.seuhd.campuscoffee.domain.ports.api.UserService
 import org.springframework.stereotype.Component
+import org.springframework.security.core.context.SecurityContextHolder
 
 /**
  * Resolves the authenticated principal to the domain [User] acting on the current request.
@@ -18,11 +19,24 @@ class CurrentUserProvider(
     /**
      * The domain [User] for the authenticated principal of the current request.
      *
-     * TODO (Exercise 2): read the authenticated principal from Spring Security's request-scoped context
+     *  (Exercise 2): read the authenticated principal from Spring Security's request-scoped context
      *  (`SecurityContextHolder`). Its name is the login name, the same value whether the request
      *  authenticated via HTTP Basic or a JWT bearer token. Resolve that login name to a domain [User]
      *  through the injected [UserService]. Throw if there is no authenticated user (the security filter
      *  chain should already have rejected such a request with 401 before it reaches here).
      */
-    fun currentUser(): User = TODO("Exercise 2: resolve the authenticated principal to a domain User")
+    fun currentUser(): User {
+        //  ("Exercise 2: resolve the authenticated principal to a domain User"
+        val authentication = SecurityContextHolder.getContext().authentication
+
+        check(
+            authentication != null &&
+                authentication.isAuthenticated &&
+                authentication.name != "anonymousUser"
+        ) {
+            "No authenticated user"
+        }
+
+        return userService.getByLoginName(authentication.name)
+    }
 }

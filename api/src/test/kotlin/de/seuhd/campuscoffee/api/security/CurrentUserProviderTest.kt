@@ -9,15 +9,40 @@ import org.mockito.kotlin.mock
  * Tests [CurrentUserProvider], the bridge from the Spring Security principal to the domain [User].
  */
 class CurrentUserProviderTest {
+
     private val userService: UserService = mock()
     private val currentUserProvider = CurrentUserProvider(userService)
 
+    @BeforeEach
+    fun clearContext() {
+        SecurityContextHolder.clearContext()
+    }
+
     @Test
-    fun `currentUser is not yet implemented`() {
-        // TODO (Exercise 2): a placeholder for the unimplemented stub. Once you implement `currentUser()`,
-        //  this assertion will fail because the stub no longer throws. Replace it with real tests: stub a
-        //  SecurityContext with an authenticated principal and a UserService that returns a fixture user,
-        //  assert `currentUser()` returns that user, and assert it throws when no one is authenticated.
-        assertThrows<NotImplementedError> { currentUserProvider.currentUser() }
+    fun `returns domain user for authenticated principal`() {
+        // given
+        val auth = UsernamePasswordAuthenticationToken("alice", "password")
+        SecurityContextHolder.getContext().authentication = auth
+
+        val expectedUser = User(id = 1, loginName = "alice")
+
+        whenever(userService.getByLoginName("alice")).thenReturn(expectedUser)
+
+        // when
+        val result = currentUserProvider.currentUser()
+
+        // then
+        assertEquals(expectedUser, result)
+    }
+
+    @Test
+    fun `throws when no authentication present`() {
+        // given
+        SecurityContextHolder.clearContext()
+
+        // when / then
+        assertThrows(IllegalStateException::class.java) {
+            currentUserProvider.currentUser()
+        }
     }
 }
