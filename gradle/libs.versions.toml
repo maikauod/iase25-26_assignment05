@@ -6,10 +6,10 @@
 # major, and scripts/check-toolchain-versions.sh (run in CI) fails the build if they drift.
 java = "25"
 spring-boot = "4.1.0"
-junit = "6.1.0"
+junit = "6.1.1"
 springdoc = "3.0.3"
 mapstruct = "1.6.3"
-cucumber = "7.34.3"
+cucumber = "7.34.4"
 archunit = "1.4.2"
 wiremock = "3.13.2"
 # Testcontainers is not managed by the Boot 4 BOM at these coordinates, so pin it explicitly.
